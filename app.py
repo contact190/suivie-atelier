@@ -1621,6 +1621,26 @@ def pointage_kiosk_page():
                     label="Opérateur devant la caméra"
                 ).props('outlined dense').classes('flex-1 bg-white')
 
+                @ui.refreshable
+                def render_kiosk_recent():
+                    recent_p = settings_mgr.get_recent_punches(limit=5)
+                    if recent_p:
+                        with ui.column().classes('w-full gap-1.5'):
+                            for p in recent_p:
+                                with ui.row().classes('w-full items-center justify-between bg-slate-50 border border-slate-100 rounded-lg p-2 px-3 text-xs'):
+                                    with ui.row().classes('items-center gap-2'):
+                                        if p["punch_type"] == "IN":
+                                            ui.label('🟢 Entrée').classes('text-3xs font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded')
+                                        else:
+                                            ui.label('🔴 Sortie').classes('text-3xs font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded')
+                                        ui.label(p.get("employee_name")).classes('font-bold text-slate-800')
+                                    with ui.row().classes('items-center gap-2'):
+                                        if p.get("confidence"):
+                                            ui.label(f'{int(p["confidence"] * 100)}% Face ID').classes('text-3xs text-slate-400 font-mono')
+                                        ui.label(p.get("time_short")).classes('font-mono font-bold text-slate-500')
+                    else:
+                        ui.label('Aucun passage aujourd\'hui pour le moment.').classes('text-xs text-slate-400 italic')
+
                 async def trigger_face_scan():
                     if not selected_emp.value:
                         ui.notify('Veuillez sélectionner un opérateur.', type='warning')
@@ -1630,53 +1650,58 @@ def pointage_kiosk_page():
                     if not emp_obj:
                         return
 
-                    # Capture de la photo en direct depuis la caméra et son de confirmation
+                    # 1. Capture de la photo en direct depuis la caméra
                     snapshot = await ui.run_javascript("window.suiviCam.capture('kiosk-camera')")
+                    if not snapshot or len(str(snapshot)) < 150:
+                        ui.notify('Caméra non active ou image vide. Allumez la caméra d\'abord.', type='warning')
+                        return
+
+                    # 2. Vérification biométrique réelle entre le visage devant la caméra et le profil enregistré
+                    verif = settings_mgr.verify_face_match(emp_obj["id"], snapshot, threshold=65.0)
+
+                    if not verif["match"]:
+                        # ❌ Visage différent ou profil inconnu -> REFUS DE POINTAGE STRICT
+                        status_card.classes('bg-rose-50 border-rose-300', remove='bg-blue-50 border-blue-200 bg-emerald-50 border-emerald-300')
+                        status_icon.props('name=cancel').classes('text-rose-600', remove='text-blue-600 text-emerald-600')
+                        status_title.set_text('❌ Visage Non Reconnu — Pointage Refusé !')
+                        status_desc.set_text(verif["reason"])
+
+                        ui.notify(
+                            verif["reason"], 
+                            type='negative', 
+                            position='top',
+                            close_button=True,
+                            duration=7000
+                        )
+                        return
+
+                    # ✅ Visage conforme -> Validation et carillon sonore
+                    punch_res = verif["punch"]
                     await ui.run_javascript("window.suiviCam.playChime()")
 
-                    # Enregistrement du pointage automatique
-                    punch_res = settings_mgr.record_punch(
-                        emp_id=emp_obj["id"],
-                        punch_type="AUTO",
-                        method="FACE_ID",
-                        confidence=0.984
-                    )
-                    
                     is_in = punch_res["punch_type"] == "IN"
                     act_label = "ARRIVÉE / PRISE DE POSTE" if is_in else "DÉPART / FIN DE POSTE"
 
-                    # Mise à jour visuelle du bandeau
-                    status_card.classes('bg-emerald-50 border-emerald-300', remove='bg-blue-50 border-blue-200')
-                    status_icon.props('name=check_circle').classes('text-emerald-600', remove='text-blue-600')
+                    # Mise à jour visuelle du bandeau en vert
+                    status_card.classes('bg-emerald-50 border-emerald-300', remove='bg-blue-50 border-blue-200 bg-rose-50 border-rose-300')
+                    status_icon.props('name=check_circle').classes('text-emerald-600', remove='text-blue-600 text-rose-600')
                     status_title.set_text(f'✅ {emp_obj["name"]} ({emp_obj.get("code")}) — {act_label} Validée !')
-                    status_desc.set_text(f'Pointage horodaté à {punch_res["time_short"]} • Indice de reconnaissance Face ID : 98.4%')
+                    status_desc.set_text(f'Pointage horodaté à {punch_res["time_short"]} • Indice de correspondance Face ID : {verif["score"]}%')
 
                     ui.notify(
-                        f'Pointage {act_label} validé pour {emp_obj["name"]} !', 
+                        f'Pointage {act_label} validé pour {emp_obj["name"]} (Score Face ID : {verif["score"]}%) !', 
                         type='positive', 
                         position='top',
                         close_button=True
                     )
+                    render_kiosk_recent.refresh()
 
                 ui.button('📸 Scanner mon Visage & Pointer', on_click=trigger_face_scan).props('color=primary size=md icon=camera_alt').classes('font-bold shadow-xs px-4')
 
         # Panneau des derniers pointages sur la borne
         with ui.card().classes('w-full bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs'):
             ui.label('📋 Derniers passages à cette borne :').classes('text-xs font-bold text-slate-500 uppercase tracking-wider mb-2')
-            recent_p = settings_mgr.get_recent_punches(limit=5)
-            if recent_p:
-                with ui.column().classes('w-full gap-1.5'):
-                    for p in recent_p:
-                        with ui.row().classes('w-full items-center justify-between bg-slate-50 border border-slate-100 rounded-lg p-2 px-3 text-xs'):
-                            with ui.row().classes('items-center gap-2'):
-                                if p["punch_type"] == "IN":
-                                    ui.label('🟢 Entrée').classes('text-3xs font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded')
-                                else:
-                                    ui.label('🔴 Sortie').classes('text-3xs font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded')
-                                ui.label(p.get("employee_name")).classes('font-bold text-slate-800')
-                            ui.label(p.get("time_short")).classes('font-mono font-bold text-slate-500')
-            else:
-                ui.label('Aucun passage aujourd\'hui pour le moment.').classes('text-xs text-slate-400 italic')
+            render_kiosk_recent()
 
 
 def open_kiosk_admin_create_dialog():

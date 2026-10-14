@@ -108,11 +108,52 @@ def test_all():
     assert emp_1["presence_status"] == "PRESENT"
     print(f"✅ Pointage ENTRÉE Face ID enregistré pour {emp_1['name']} à {punch_in['time_short']}.")
 
-    # Enregistrement Face ID
-    face_cred = settings_mgr.save_face_credential("emp_1", photo_data_url="data:image/png;base64,fakephoto123")
+    # Enregistrement Face ID avec vraies images test
+    from PIL import Image, ImageDraw
+    import io, base64
+
+    # Photo Référence : Employé 1
+    im_ref = Image.new('RGB', (160, 160), color=(240, 200, 180))
+    d_ref = ImageDraw.Draw(im_ref)
+    d_ref.ellipse([50, 40, 70, 60], fill=(30, 30, 30))
+    d_ref.ellipse([90, 40, 110, 60], fill=(30, 30, 30))
+    d_ref.rectangle([60, 110, 100, 125], fill=(180, 50, 50))
+    buf_ref = io.BytesIO()
+    im_ref.save(buf_ref, format='JPEG')
+    b64_ref = "data:image/jpeg;base64," + base64.b64encode(buf_ref.getvalue()).decode()
+
+    face_cred = settings_mgr.save_face_credential("emp_1", photo_data_url=b64_ref)
     assert face_cred["employee_id"] == "emp_1"
     assert emp_1["face_id_enrolled"] is True
     print(f"✅ Enrôlement Face ID validé pour {emp_1['name']}.")
+
+    # Photo B : Personne DIFFÉRENTE devant la caméra
+    im_diff = Image.new('RGB', (160, 160), color=(100, 70, 50))
+    d_diff = ImageDraw.Draw(im_diff)
+    d_diff.ellipse([30, 60, 60, 90], fill=(10, 10, 10))
+    d_diff.ellipse([100, 60, 130, 90], fill=(10, 10, 10))
+    d_diff.rectangle([70, 130, 110, 145], fill=(220, 80, 80))
+    buf_diff = io.BytesIO()
+    im_diff.save(buf_diff, format='JPEG')
+    b64_diff = "data:image/jpeg;base64," + base64.b64encode(buf_diff.getvalue()).decode()
+
+    res_diff = settings_mgr.verify_face_match("emp_1", b64_diff, threshold=65.0)
+    assert res_diff["match"] is False
+    print(f"✅ Rejet formel du mauvais visage validé (Score: {res_diff['score']}% < 65%).")
+
+    # Photo A' : MÊME PERSONNE avec légère variation
+    im_same = Image.new('RGB', (160, 160), color=(236, 198, 178))
+    d_same = ImageDraw.Draw(im_same)
+    d_same.ellipse([51, 41, 71, 61], fill=(32, 32, 32))
+    d_same.ellipse([91, 41, 111, 61], fill=(32, 32, 32))
+    d_same.rectangle([61, 111, 101, 126], fill=(182, 52, 52))
+    buf_same = io.BytesIO()
+    im_same.save(buf_same, format='JPEG')
+    b64_same = "data:image/jpeg;base64," + base64.b64encode(buf_same.getvalue()).decode()
+
+    res_same = settings_mgr.verify_face_match("emp_1", b64_same, threshold=65.0)
+    assert res_same["match"] is True
+    print(f"✅ Acceptation du bon visage validée (Score: {res_same['score']}% >= 65%).")
 
     # Test vérification code PIN Admin
     assert settings_mgr.verify_admin_pin("1234") is True
