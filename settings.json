@@ -1,0 +1,771 @@
+{
+  "roles": [
+    {
+      "id": "coupe",
+      "label": "Coupe / Débit",
+      "color": "#3B82F6",
+      "default_pct": 15,
+      "icon": "content_cut"
+    },
+    {
+      "id": "grugage",
+      "label": "Grugage / Usinage",
+      "color": "#8B5CF6",
+      "default_pct": 20,
+      "icon": "build"
+    },
+    {
+      "id": "assemblage",
+      "label": "Assemblage Cadres & Ouvrants",
+      "color": "#F59E0B",
+      "default_pct": 40,
+      "icon": "handyman"
+    },
+    {
+      "id": "vitrage",
+      "label": "Vitrage & Joints",
+      "color": "#06B6D4",
+      "default_pct": 15,
+      "icon": "window"
+    },
+    {
+      "id": "emballage",
+      "label": "Contrôle & Emballage",
+      "color": "#10B981",
+      "default_pct": 10,
+      "icon": "inventory"
+    }
+  ],
+  "joinery_types": [
+    {
+      "id": "h31_2ouv_sv",
+      "label": "H31 2 Ouvrant SV",
+      "gamme": "H31 2Ouv SV",
+      "categorie": "CAT-F - Coulissant",
+      "has_joint_vitrage": true,
+      "composants_count": 16,
+      "description": "Coulissant H31 2 ouvrants Simple Vitrage",
+      "temps_moyen_min": 75.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 15,
+        "assemblage": 45,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h31_2ouv_dv",
+      "label": "H31 2 Ouvrant DV",
+      "gamme": "H31 2Ouv DV",
+      "categorie": "CAT-F - Coulissant",
+      "has_joint_vitrage": true,
+      "composants_count": 16,
+      "description": "Coulissant H31 2 ouvrants Double Vitrage",
+      "temps_moyen_min": 80.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 15,
+        "assemblage": 45,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h36_dv_2ouv",
+      "label": "H36 DV 2 Ouvrant",
+      "gamme": "H36 2Ouv DV",
+      "categorie": "CAT-F - Coulissant",
+      "has_joint_vitrage": true,
+      "composants_count": 16,
+      "description": "Coulissant H36 2 ouvrants Double Vitrage",
+      "temps_moyen_min": 85.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 15,
+        "assemblage": 45,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h36_3panneau_dv_3r",
+      "label": "H36 3 PANNEAU DV 3R",
+      "gamme": "H36 trois panneaux dv",
+      "categorie": "CAT-F - Coulissant",
+      "has_joint_vitrage": true,
+      "composants_count": 21,
+      "description": "Coulissant H36 3 panneaux Double Vitrage 3 rails",
+      "temps_moyen_min": 130.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 15,
+        "assemblage": 45,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h48t_do",
+      "label": "H48T DO",
+      "gamme": "H48T DO",
+      "categorie": "CAT-F - Coulissant",
+      "has_joint_vitrage": true,
+      "composants_count": 24,
+      "description": "Coulissant H48T Double Ouvrant",
+      "temps_moyen_min": 110.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 15,
+        "assemblage": 45,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h48t_3vantaux",
+      "label": "H48T 3 vantaux",
+      "gamme": "H48T trois panneaux",
+      "categorie": "CAT-F - Coulissant",
+      "has_joint_vitrage": true,
+      "composants_count": 22,
+      "description": "Coulissant H48T 3 vantaux grande dimension",
+      "temps_moyen_min": 140.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 15,
+        "assemblage": 45,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h40_1v",
+      "label": "H40 1 Vantail",
+      "gamme": "H40 1V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 17,
+      "description": "Fenêtre ouvrante H40 1 vantail",
+      "temps_moyen_min": 55.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 20,
+        "assemblage": 40,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h40_2v",
+      "label": "H40 2 Vantaux",
+      "gamme": "H40 2V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 17,
+      "description": "Fenêtre ouvrante H40 2 vantaux",
+      "temps_moyen_min": 70.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 20,
+        "assemblage": 40,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h40_vasistas",
+      "label": "H40 VASISTAS",
+      "gamme": "H40 Vasistas",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 12,
+      "description": "Châssis à soufflet / Vasistas H40",
+      "temps_moyen_min": 45.0,
+      "ratios": {
+        "coupe": 20,
+        "grugage": 15,
+        "assemblage": 40,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h52_1v",
+      "label": "H52 1 VANTAIL",
+      "gamme": "H52 1V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 17,
+      "description": "Fenêtre ouvrante série H52 1 vantail",
+      "temps_moyen_min": 60.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 20,
+        "assemblage": 40,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h52_2v",
+      "label": "H52 2 Vantaux",
+      "gamme": "H52 2V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 18,
+      "description": "Fenêtre ouvrante série H52 2 vantaux",
+      "temps_moyen_min": 75.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 20,
+        "assemblage": 40,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "fenetre_1v_h68t",
+      "label": "Fenetre Un vantail H68t",
+      "gamme": "H68t 1V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 14,
+      "description": "Fenêtre H68t ouvrant 1 vantail à rupture de pont thermique",
+      "temps_moyen_min": 65.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 20,
+        "assemblage": 40,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "fenetre_2v_h68t",
+      "label": "Fenetre 2 vantaux H68t",
+      "gamme": "H68t 2V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 18,
+      "description": "Fenêtre H68t ouvrant 2 vantaux à rupture de pont thermique",
+      "temps_moyen_min": 80.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 20,
+        "assemblage": 40,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "vasistas_h52",
+      "label": "Vasistas H52",
+      "gamme": "H52 1V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 12,
+      "description": "Châssis à soufflet / Vasistas H52",
+      "temps_moyen_min": 45.0,
+      "ratios": {
+        "coupe": 20,
+        "grugage": 15,
+        "assemblage": 40,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "e_75",
+      "label": "E-75",
+      "gamme": "E-75",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 15,
+      "description": "Série E-75 profil ouvrant renforcé",
+      "temps_moyen_min": 70.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 20,
+        "assemblage": 40,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "porte_1v_40",
+      "label": "Porte un vantail 40",
+      "gamme": "P H40 1V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 13,
+      "description": "Porte d'entrée 1 vantail série H40",
+      "temps_moyen_min": 75.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 25,
+        "assemblage": 35,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "porte_2v_h40",
+      "label": "Porte deux vantail H40",
+      "gamme": "P H40 2V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 18,
+      "description": "Porte d'entrée double vantail série H40",
+      "temps_moyen_min": 95.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 25,
+        "assemblage": 35,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "porte_1v_h40_plinthe",
+      "label": "Porte un vantail H40 Plinthe",
+      "gamme": "P H40 1V Plinthe",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 17,
+      "description": "Porte 1 vantail H40 avec plinthe basse",
+      "temps_moyen_min": 85.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 25,
+        "assemblage": 35,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "porte_2v_h40_plinthe",
+      "label": "Porte deux vantaux H40 Plinthe",
+      "gamme": "P H40 2V Plinthe",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 19,
+      "description": "Porte 2 vantaux H40 avec plinthe basse",
+      "temps_moyen_min": 105.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 25,
+        "assemblage": 35,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "porte_1v_h52",
+      "label": "Porte un vantail H52",
+      "gamme": "P H52 1V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 17,
+      "description": "Porte 1 vantail profil lourd série H52",
+      "temps_moyen_min": 85.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 25,
+        "assemblage": 35,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "porte_2v_h52",
+      "label": "Porte deux vantaux H52",
+      "gamme": "P H52 2V",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 18,
+      "description": "Porte double ouvrant profil lourd série H52",
+      "temps_moyen_min": 110.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 25,
+        "assemblage": 35,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "porte_1v_h52_plinthe",
+      "label": "Porte un vantail H52 Plinthe",
+      "gamme": "P H52 1V Plinthe",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 14,
+      "description": "Porte 1 vantail H52 avec plinthe basse",
+      "temps_moyen_min": 90.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 25,
+        "assemblage": 35,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "porte_2v_h52_plinthe",
+      "label": "Porte deux vantaux H52 Plinthe",
+      "gamme": "P H52 2V Plinthe",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 19,
+      "description": "Porte 2 vantaux H52 avec plinthe basse",
+      "temps_moyen_min": 115.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 25,
+        "assemblage": 35,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "porte_serrure_h68t",
+      "label": "Porte Serrure H68t",
+      "gamme": "P H68t",
+      "categorie": "CAT-F - Ouvrant",
+      "has_joint_vitrage": true,
+      "composants_count": 19,
+      "description": "Porte grand trafic serrure sécurité série H68t",
+      "temps_moyen_min": 100.0,
+      "ratios": {
+        "coupe": 15,
+        "grugage": 25,
+        "assemblage": 35,
+        "vitrage": 15,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h40_fix",
+      "label": "H40 FIX",
+      "gamme": "H40 FIX",
+      "categorie": "CAT-F - Fixe",
+      "has_joint_vitrage": true,
+      "composants_count": 9,
+      "description": "Châssis fixe vitré série H40",
+      "temps_moyen_min": 35.0,
+      "ratios": {
+        "coupe": 20,
+        "grugage": 10,
+        "assemblage": 35,
+        "vitrage": 25,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h52_fix",
+      "label": "H52 FIX",
+      "gamme": "H52 FIX",
+      "categorie": "CAT-F - Fixe",
+      "has_joint_vitrage": true,
+      "composants_count": 10,
+      "description": "Châssis fixe vitré série H52",
+      "temps_moyen_min": 40.0,
+      "ratios": {
+        "coupe": 20,
+        "grugage": 10,
+        "assemblage": 35,
+        "vitrage": 25,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "h68t_fix",
+      "label": "H68t FIX",
+      "gamme": "Fix H68t",
+      "categorie": "CAT-F - Fixe",
+      "has_joint_vitrage": true,
+      "composants_count": 8,
+      "description": "Châssis fixe vitré H68t à rupture thermique",
+      "temps_moyen_min": 40.0,
+      "ratios": {
+        "coupe": 20,
+        "grugage": 10,
+        "assemblage": 35,
+        "vitrage": 25,
+        "emballage": 10
+      }
+    },
+    {
+      "id": "pres_cadre",
+      "label": "Pres Cadre",
+      "gamme": "Precadre",
+      "categorie": "CAT-F - Fixe",
+      "has_joint_vitrage": true,
+      "composants_count": 7,
+      "description": "Précadre standard de pose",
+      "temps_moyen_min": 30.0,
+      "ratios": {
+        "coupe": 25,
+        "grugage": 10,
+        "assemblage": 45,
+        "vitrage": 5,
+        "emballage": 15
+      }
+    },
+    {
+      "id": "precadre_trav_h",
+      "label": "Precadre Trav H",
+      "gamme": "Precadre Trav H",
+      "categorie": "CAT-F - Fixe",
+      "has_joint_vitrage": true,
+      "composants_count": 7,
+      "description": "Précadre avec traverse horizontale",
+      "temps_moyen_min": 30.0,
+      "ratios": {
+        "coupe": 25,
+        "grugage": 10,
+        "assemblage": 45,
+        "vitrage": 5,
+        "emballage": 15
+      }
+    },
+    {
+      "id": "precadre_trav_v",
+      "label": "Precadre Trav V",
+      "gamme": "Precadre Trav V",
+      "categorie": "CAT-F - Fixe",
+      "has_joint_vitrage": true,
+      "composants_count": 7,
+      "description": "Précadre avec montant / traverse verticale",
+      "temps_moyen_min": 30.0,
+      "ratios": {
+        "coupe": 25,
+        "grugage": 10,
+        "assemblage": 45,
+        "vitrage": 5,
+        "emballage": 15
+      }
+    },
+    {
+      "id": "precadre_2_trav",
+      "label": "Precadre 2 Trav",
+      "gamme": "Precadre 2 Trav",
+      "categorie": "CAT-F - Fixe",
+      "has_joint_vitrage": true,
+      "composants_count": 7,
+      "description": "Précadre avec 2 traverses de renfort",
+      "temps_moyen_min": 35.0,
+      "ratios": {
+        "coupe": 25,
+        "grugage": 10,
+        "assemblage": 45,
+        "vitrage": 5,
+        "emballage": 15
+      }
+    },
+    {
+      "id": "garde_corps_laila_1100",
+      "label": "Garde corps laila 1100",
+      "gamme": "Garde corps laila",
+      "categorie": "CAT-Special - Garde Corps",
+      "has_joint_vitrage": true,
+      "composants_count": 12,
+      "description": "Garde-corps aluminium Laila hauteur 1100 mm",
+      "temps_moyen_min": 50.0,
+      "ratios": {
+        "coupe": 25,
+        "grugage": 15,
+        "assemblage": 45,
+        "vitrage": 5,
+        "emballage": 10
+      }
+    }
+  ],
+  "tables": [
+    {
+      "id": "table_1",
+      "name": "Table 1",
+      "code": "T1",
+      "description": "Poste débit profilés & tronçonneuse aluminium double tête",
+      "active": true,
+      "role_assignments": [
+        {
+          "role_id": "coupe",
+          "employee_id": "emp_1"
+        }
+      ]
+    },
+    {
+      "id": "table_2",
+      "name": "Table 2",
+      "code": "T2",
+      "description": "Centre d'usinage, grugeuse & pantographe serrures",
+      "active": true,
+      "role_assignments": [
+        {
+          "role_id": "grugage",
+          "employee_id": "emp_2"
+        }
+      ]
+    },
+    {
+      "id": "table_3",
+      "name": "Table 3",
+      "code": "T3",
+      "description": "Sertissage des angles & montage des cadres dormants",
+      "active": true,
+      "role_assignments": [
+        {
+          "role_id": "assemblage",
+          "employee_id": "emp_3"
+        }
+      ]
+    },
+    {
+      "id": "table_4",
+      "name": "Table 4",
+      "code": "T4",
+      "description": "Assemblage des ouvrants, battants & quincaillerie multipoints",
+      "active": true,
+      "role_assignments": [
+        {
+          "role_id": "assemblage",
+          "employee_id": "emp_4"
+        }
+      ]
+    },
+    {
+      "id": "table_5",
+      "name": "Table 5",
+      "code": "T5",
+      "description": "Pose du vitrage, calage, joints d'étanchéité & parecloses",
+      "active": true,
+      "role_assignments": [
+        {
+          "role_id": "vitrage",
+          "employee_id": "emp_5"
+        }
+      ]
+    },
+    {
+      "id": "table_6",
+      "name": "Table 6",
+      "code": "T6",
+      "description": "Contrôle qualité final, protection d'angles & conditionnement",
+      "active": true,
+      "role_assignments": [
+        {
+          "role_id": "emballage",
+          "employee_id": "emp_6"
+        }
+      ]
+    }
+  ],
+  "employees": [
+    {
+      "id": "emp_1",
+      "name": "Karim Benali",
+      "code": "EMP-01",
+      "specialty": "Opérateur Débit & Tronçonneuse",
+      "phone": "06 12 34 56 78",
+      "active": true,
+      "presence_status": "PRESENT",
+      "last_punch_at": "08:00:12",
+      "face_id_enrolled": true
+    },
+    {
+      "id": "emp_2",
+      "name": "Moussa Traoré",
+      "code": "EMP-02",
+      "specialty": "Technicien Usinage & Grugage",
+      "phone": "06 23 45 67 89",
+      "active": false,
+      "presence_status": "LEFT",
+      "last_punch_at": "16:43:35",
+      "face_id_enrolled": true
+    },
+    {
+      "id": "emp_3",
+      "name": "Thomas Mercier",
+      "code": "EMP-03",
+      "specialty": "Monteur Assembleur Cadres Dormants",
+      "phone": "06 34 56 78 90",
+      "active": true,
+      "presence_status": "PRESENT",
+      "last_punch_at": "08:12:05",
+      "face_id_enrolled": true
+    },
+    {
+      "id": "emp_4",
+      "name": "Lucas Martin",
+      "code": "EMP-04",
+      "specialty": "Monteur Ouvrants & Quincaillerie",
+      "phone": "06 45 67 89 01",
+      "active": true,
+      "presence_status": "ABSENT",
+      "last_punch_at": null,
+      "face_id_enrolled": true
+    },
+    {
+      "id": "emp_5",
+      "name": "Youssef Alami",
+      "code": "EMP-05",
+      "specialty": "Poseur Vitrage, Joints & Parecloses",
+      "phone": "06 56 78 90 12",
+      "active": true,
+      "presence_status": "PRESENT",
+      "last_punch_at": "08:15:30",
+      "face_id_enrolled": true
+    },
+    {
+      "id": "emp_6",
+      "name": "Sofiane B.",
+      "code": "EMP-06",
+      "specialty": "Contrôleur Qualité & Conditionnement",
+      "phone": "06 67 89 01 23",
+      "active": true,
+      "presence_status": "BREAK",
+      "last_punch_at": "12:00:15",
+      "face_id_enrolled": true
+    },
+    {
+      "id": "emp_7",
+      "name": "aymene",
+      "code": "EMP-07",
+      "specialty": "Opérateur atelier",
+      "phone": "",
+      "active": true,
+      "presence_status": "PRESENT",
+      "last_punch_at": "16:43:21",
+      "face_id_enrolled": true
+    }
+  ],
+  "attendance_punches": [
+    {
+      "id": "punch_1791989015095",
+      "employee_id": "emp_2",
+      "employee_name": "Moussa Traoré",
+      "employee_code": "EMP-02",
+      "punch_type": "OUT",
+      "punch_time": "2026-10-14 16:43:35",
+      "time_short": "16:43:35",
+      "method": "FACE_ID",
+      "confidence": 0.984,
+      "notes": ""
+    }
+  ],
+  "kiosk_settings": {
+    "admin_pin": "1234",
+    "kiosk_name": "Borne Entrée Atelier",
+    "qr_token": "kiosk_atelier_token"
+  },
+  "face_credentials": {
+    "emp_7": {
+      "employee_id": "emp_7",
+      "photo_data_url": "data:image/png;base64,sample_captured_from_kiosk",
+      "enrolled_at": "2026-10-14T16:43:21.943481",
+      "enrolled_by": "ADMIN"
+    }
+  }
+}
