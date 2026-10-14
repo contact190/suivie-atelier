@@ -680,9 +680,9 @@
       "code": "EMP-02",
       "specialty": "Technicien Usinage & Grugage",
       "phone": "06 23 45 67 89",
-      "active": false,
-      "presence_status": "LEFT",
-      "last_punch_at": "16:43:35",
+      "active": true,
+      "presence_status": "PRESENT",
+      "last_punch_at": "08:05:44",
       "face_id_enrolled": true
     },
     {
@@ -728,44 +728,13 @@
       "presence_status": "BREAK",
       "last_punch_at": "12:00:15",
       "face_id_enrolled": true
-    },
-    {
-      "id": "emp_7",
-      "name": "aymene",
-      "code": "EMP-07",
-      "specialty": "Opérateur atelier",
-      "phone": "",
-      "active": true,
-      "presence_status": "PRESENT",
-      "last_punch_at": "16:43:21",
-      "face_id_enrolled": true
     }
   ],
-  "attendance_punches": [
-    {
-      "id": "punch_1791989015095",
-      "employee_id": "emp_2",
-      "employee_name": "Moussa Traoré",
-      "employee_code": "EMP-02",
-      "punch_type": "OUT",
-      "punch_time": "2026-10-14 16:43:35",
-      "time_short": "16:43:35",
-      "method": "FACE_ID",
-      "confidence": 0.984,
-      "notes": ""
-    }
-  ],
+  "attendance_punches": [],
   "kiosk_settings": {
     "admin_pin": "1234",
     "kiosk_name": "Borne Entrée Atelier",
     "qr_token": "kiosk_atelier_token"
   },
-  "face_credentials": {
-    "emp_7": {
-      "employee_id": "emp_7",
-      "photo_data_url": "data:image/png;base64,sample_captured_from_kiosk",
-      "enrolled_at": "2026-10-14T16:43:21.943481",
-      "enrolled_by": "ADMIN"
-    }
-  }
+  "face_credentials": {}
 }

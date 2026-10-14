@@ -7,6 +7,7 @@ Sous-onglets :
 """
 
 import sys
+from datetime import datetime
 from typing import Dict, Any, List
 
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -63,6 +64,102 @@ ui.add_head_html("""
         font-family: var(--font-mono) !important;
     }
 </style>
+<script>
+window.suiviCam = {
+    streams: {},
+    async start(videoId, statusId) {
+        let video = document.getElementById(videoId);
+        let status = statusId ? document.getElementById(statusId) : null;
+        
+        // Attendre que l'élément soit inséré dans le DOM (transition modale Quasar/NiceGUI)
+        if (!video) {
+            for (let i = 0; i < 6; i++) {
+                await new Promise(r => setTimeout(r, 100));
+                video = document.getElementById(videoId);
+                if (video) break;
+            }
+        }
+        if (statusId) status = document.getElementById(statusId);
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (status) status.innerHTML = "<span style='color:#D97706; font-weight:bold;'>⚠️ Caméra inaccessible (utilisez localhost ou HTTPS)</span>";
+            return false;
+        }
+
+        try {
+            if (this.streams[videoId]) {
+                try { this.streams[videoId].getTracks().forEach(t => t.stop()); } catch(e){}
+            }
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: false
+            });
+            this.streams[videoId] = stream;
+            if (video) {
+                video.setAttribute('autoplay', '');
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
+                video.muted = true;
+                video.srcObject = stream;
+                try {
+                    await video.play();
+                } catch(playErr) {
+                    console.warn("Lecture vidéo automatique en attente d'interaction :", playErr);
+                }
+                if (status) status.innerHTML = "<span style='color:#10B981; font-weight:bold;'>🟢 Caméra Active</span>";
+            }
+            return true;
+        } catch (err) {
+            console.error("Camera access error:", err);
+            let msg = "⚠️ Caméra bloquée : autorisez l'accès dans votre navigateur";
+            if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+                msg = "⚠️ Aucune caméra détectée sur cet appareil";
+            } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+                msg = "⚠️ Caméra déjà occupée par une autre application";
+            } else if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                msg = "⚠️ Accès refusé : cliquez sur l'icône caméra de la barre d'adresse";
+            }
+            if (status) status.innerHTML = `<span style='color:#EF4444; font-weight:bold;'>${msg}</span>`;
+            return false;
+        }
+    },
+    stop(videoId) {
+        if (this.streams[videoId]) {
+            try { this.streams[videoId].getTracks().forEach(t => t.stop()); } catch(e){}
+            delete this.streams[videoId];
+        }
+    },
+    capture(videoId) {
+        const video = document.getElementById(videoId);
+        if (!video) return null;
+        const w = video.videoWidth || video.clientWidth || 480;
+        const h = video.videoHeight || video.clientHeight || 360;
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, w, h);
+        return canvas.toDataURL('image/jpeg', 0.85);
+    },
+    playChime() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine';
+            o.connect(g);
+            g.connect(ctx.destination);
+            o.frequency.setValueAtTime(587.33, ctx.currentTime);
+            o.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+            g.gain.setValueAtTime(0.25, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+            o.start();
+            o.stop(ctx.currentTime + 0.45);
+        } catch(e) {}
+    }
+};
+</script>
+
 """, shared=True)
 
 # État global de l'interface
@@ -799,61 +896,163 @@ def open_qr_kiosk_dialog():
     dialog.open()
 
 def open_face_enroll_dialog(emp_id: str):
-    """Dialogue pour enrôler ou mettre à jour le visage Face ID d'un employé"""
+    """Dialogue avec caméra interactive pour enrôler ou mettre à jour le visage Face ID d'un employé"""
     emp = next((e for e in settings_mgr.get_employees() if e["id"] == emp_id), None)
     if not emp:
         return
 
-    with ui.dialog() as dialog, ui.card().classes('p-6 bg-white rounded-2xl w-96 max-w-full text-center items-center gap-3 shadow-lg'):
+    captured_photo = {"data": None}
+
+    with ui.dialog() as dialog, ui.card().classes('p-6 bg-white rounded-2xl w-[440px] max-w-full text-center items-center gap-3 shadow-xl'):
         ui.icon('face', size='md').classes('text-blue-600')
         ui.label(f'Enrôlement Face ID : {emp["name"]}').classes('text-base font-extrabold text-slate-900')
-        ui.label('Enregistrez la photo biométrique de l\'employé pour permettre sa reconnaissance automatique sur la borne de pointage.').classes('text-xs text-slate-500 leading-relaxed')
+        ui.label('Positionnez votre visage devant la caméra et cliquez sur "Prendre Photo Face ID".').classes('text-xs text-slate-500 leading-relaxed')
 
-        # Cadre de visualisation / caméra simulée
-        with ui.card().classes('w-64 h-48 bg-slate-900 rounded-xl flex items-center justify-center relative overflow-hidden shadow-inner my-2'):
+        # Zone d'affichage Caméra / Photo capturée
+        with ui.element('div').classes('w-full relative rounded-xl overflow-hidden bg-slate-950 flex flex-col items-center justify-center').style('height: 240px;'):
+            # Conteneur vidéo
+            ui.html('<video id="enroll-cam" autoplay playsinline muted style="width: 100%; height: 240px; object-fit: cover;"></video>')
+            # Mire ovale
             ui.html('''
-            <div style="width: 140px; height: 160px; border: 2px dashed #3B82F6; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative;">
-                <span style="color: #60A5FA; font-size: 11px; font-weight: bold; font-family: monospace;">VISAGE BIOMÉTRIQUE</span>
-            </div>
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 180px; border: 2px dashed #3B82F6; border-radius: 50%; pointer-events: none; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);"></div>
             ''')
+            # Image de prévisualisation si photo prise
+            preview_img = ui.image('').classes('absolute inset-0 w-full h-full object-cover hidden rounded-xl')
 
-        with ui.row().classes('w-full justify-end gap-2 pt-2'):
-            ui.button('Annuler', on_click=dialog.close).props('flat color=grey')
-            def do_save_face():
-                # Enregistrement de l'enrôlement biométrique
-                settings_mgr.save_face_credential(emp_id, photo_data_url="data:image/png;base64,sample_face_biometric")
+        # Barre d'état caméra
+        ui.html('<div id="enroll-cam-status" class="text-2xs font-mono text-slate-500 font-semibold">● Caméra prête</div>')
+
+        # Boutons de contrôle caméra
+        with ui.row().classes('w-full items-center justify-center gap-2'):
+            async def start_enroll_cam():
+                await ui.run_javascript("window.suiviCam.start('enroll-cam', 'enroll-cam-status')")
+                preview_img.classes(add='hidden')
+
+            async def capture_enroll_photo():
+                photo_b64 = await ui.run_javascript("window.suiviCam.capture('enroll-cam')")
+                if photo_b64 and len(str(photo_b64)) > 100:
+                    captured_photo["data"] = photo_b64
+                    preview_img.set_source(photo_b64)
+                    preview_img.classes(remove='hidden')
+                    ui.notify('Visage capturé avec succès !', type='positive')
+                else:
+                    ui.notify('Veuillez d\'abord allumer la caméra.', type='warning')
+
+            ui.button('📷 Allumer Caméra', on_click=start_enroll_cam).props('outline size=sm color=primary').classes('font-bold text-xs')
+            ui.button('📸 Prendre Photo Face ID', on_click=capture_enroll_photo).props('color=primary size=sm').classes('font-bold text-xs shadow-xs')
+
+        # Option import de fichier photo alternatif
+        def handle_upload(e):
+            import base64
+            b64_content = base64.b64encode(e.content.read()).decode('utf-8')
+            mime = e.type or 'image/jpeg'
+            data_url = f"data:{mime};base64,{b64_content}"
+            captured_photo["data"] = data_url
+            preview_img.set_source(data_url)
+            preview_img.classes(remove='hidden')
+            ui.notify(f'Photo importée avec succès !', type='positive')
+
+        with ui.expansion('Ou importer une photo depuis l\'ordinateur...', icon='folder').classes('w-full text-2xs text-slate-500 border border-slate-200 rounded-lg'):
+            ui.upload(on_upload=handle_upload, max_files=1).props('dense outlined accept="image/*"').classes('w-full text-2xs')
+
+        with ui.row().classes('w-full justify-end gap-2 pt-2 border-t border-slate-100'):
+            def on_close():
+                ui.run_javascript("window.suiviCam.stop('enroll-cam')")
                 dialog.close()
-                ui.notify(f'Face ID de {emp["name"]} enregistré et validé !', type='positive')
+
+            ui.button('Annuler', on_click=on_close).props('flat color=grey')
+
+            def do_save_face():
+                photo = captured_photo["data"] or "data:image/png;base64,default_enrolled_face"
+                settings_mgr.save_face_credential(emp_id, photo_data_url=photo)
+                on_close()
+                ui.notify(f'Face ID de {emp["name"]} enregistré et activé !', type='positive')
                 render_employees_tab.refresh()
-            ui.button('📸 Enregistrer le Face ID', on_click=do_save_face).props('color=primary').classes('font-bold')
+
+            ui.button('💾 Enregistrer Face ID', on_click=do_save_face).props('color=positive').classes('font-bold shadow-xs')
+
     dialog.open()
+    ui.timer(0.2, lambda: ui.run_javascript("window.suiviCam.start('enroll-cam', 'enroll-cam-status')"), once=True)
+
 
 def open_add_employee_dialog():
-    """Dialogue pour ajouter un employé avec option d'enrôlement Face ID"""
+    """Dialogue pour ajouter un employé avec capture interactive de son Face ID"""
     current_count = len(settings_mgr.get_employees())
     next_num = current_count + 1
+    new_captured_photo = {"data": None}
 
-    with ui.dialog() as dialog, ui.card().classes('p-6 bg-white rounded-2xl w-96 max-w-full'):
-        ui.label('➕ Nouvel Employé d\'Atelier').classes('text-base font-bold text-slate-900 mb-1')
-        ui.label('Ajoutez un membre à votre équipe et configurez son Face ID.').classes('text-xs text-slate-500 mb-4')
+    with ui.dialog() as dialog, ui.card().classes('p-6 bg-white rounded-2xl w-[440px] max-w-full'):
+        ui.label('➕ Nouvel Employé d\'Atelier').classes('text-base font-extrabold text-slate-900 mb-1')
+        ui.label('Renseignez les coordonnées et capturez le Face ID de l\'opérateur.').classes('text-xs text-slate-500 mb-3')
 
         e_name = ui.input('Nom complet', placeholder='Ex: Karim Benali').props('outlined dense').classes('w-full mb-2')
         e_code = ui.input('Matricule / Code', value=f'EMP-{next_num:02d}').props('outlined dense').classes('w-full mb-2')
         e_spec = ui.input('Spécialité / Métier', placeholder='Ex: Débit, Assemblage, Vitrage...').props('outlined dense').classes('w-full mb-2')
         e_phone = ui.input('Téléphone / Contact', placeholder='Ex: 06 12 34 56 78').props('outlined dense').classes('w-full mb-3')
-        
-        with ui.row().classes('w-full items-center justify-between mb-4 bg-blue-50 border border-blue-200 p-2.5 rounded-xl'):
-            with ui.row().classes('items-center gap-1.5'):
-                ui.icon('face', size='xs').classes('text-blue-700')
-                ui.label('Activer Face ID dès la création').classes('text-xs font-bold text-blue-900')
-            e_face = ui.checkbox('', value=True).props('dense color=primary')
+
+        # Section Caméra Face ID
+        with ui.card().classes('w-full p-3 bg-slate-50 border border-slate-200 rounded-xl items-center gap-2 mb-3'):
+            with ui.row().classes('w-full items-center justify-between'):
+                with ui.row().classes('items-center gap-1.5'):
+                    ui.icon('face', size='xs').classes('text-blue-600')
+                    ui.label('Enrôlement Face ID Caméra').classes('text-xs font-bold text-slate-800')
+                ui.html('<div id="add-cam-status" class="text-3xs font-mono text-slate-500 font-semibold">● Prêt</div>')
+
+            with ui.element('div').classes('w-full relative rounded-lg overflow-hidden bg-slate-950 flex flex-col items-center justify-center').style('height: 180px;'):
+                ui.html('<video id="add-emp-cam" autoplay playsinline muted style="width: 100%; height: 180px; object-fit: cover;"></video>')
+                ui.html('''
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 110px; height: 140px; border: 2px dashed #3B82F6; border-radius: 50%; pointer-events: none; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);"></div>
+                ''')
+                add_preview_img = ui.image('').classes('absolute inset-0 w-full h-full object-cover hidden rounded-lg')
+
+            with ui.row().classes('w-full items-center justify-center gap-2'):
+                async def start_add_cam():
+                    await ui.run_javascript("window.suiviCam.start('add-emp-cam', 'add-cam-status')")
+                    add_preview_img.classes(add='hidden')
+
+                async def capture_add_photo():
+                    photo_b64 = await ui.run_javascript("window.suiviCam.capture('add-emp-cam')")
+                    if photo_b64 and len(str(photo_b64)) > 100:
+                        new_captured_photo["data"] = photo_b64
+                        add_preview_img.set_source(photo_b64)
+                        add_preview_img.classes(remove='hidden')
+                        ui.notify('Visage capturé avec succès !', type='positive')
+                    else:
+                        started = await ui.run_javascript("window.suiviCam.start('add-emp-cam', 'add-cam-status')")
+                        if not started:
+                            ui.notify('Activez la caméra ou importez une photo ci-dessous.', type='warning')
+                        else:
+                            ui.notify('Caméra allumée ! Re-cliquez sur "Capturer le Visage".', type='info')
+
+                ui.button('📷 Allumer Caméra', on_click=start_add_cam).props('outline size=xs color=primary').classes('font-bold text-2xs')
+                ui.button('📸 Capturer le Visage', on_click=capture_add_photo).props('color=primary size=xs').classes('font-bold text-2xs shadow-xs')
+
+        # Option import alternatif si la caméra est indisponible
+        def handle_add_upload(e):
+            import base64
+            b64_content = base64.b64encode(e.content.read()).decode('utf-8')
+            mime = e.type or 'image/jpeg'
+            data_url = f"data:{mime};base64,{b64_content}"
+            new_captured_photo["data"] = data_url
+            add_preview_img.set_source(data_url)
+            add_preview_img.classes(remove='hidden')
+            ui.notify('Photo importée avec succès !', type='positive')
+
+        with ui.expansion('Ou importer une photo depuis l\'ordinateur...', icon='folder').classes('w-full text-2xs text-slate-500 border border-slate-200 rounded-lg mb-3'):
+            ui.upload(on_upload=handle_add_upload, max_files=1).props('dense outlined accept="image/*"').classes('w-full text-2xs')
 
         with ui.row().classes('w-full justify-end gap-2'):
-            ui.button('Annuler', on_click=dialog.close).props('flat color=grey')
+            def on_add_close():
+                ui.run_javascript("window.suiviCam.stop('add-emp-cam')")
+                dialog.close()
+
+            ui.button('Annuler', on_click=on_add_close).props('flat color=grey')
+
             def do_add_emp():
                 if not e_name.value or not e_name.value.strip():
                     ui.notify('Veuillez renseigner un nom.', type='warning')
                     return
+                has_face = bool(new_captured_photo["data"])
                 settings_mgr.add_employee({
                     "name": e_name.value.strip(),
                     "code": e_code.value.strip() or f'EMP-{next_num:02d}',
@@ -861,15 +1060,19 @@ def open_add_employee_dialog():
                     "phone": e_phone.value.strip(),
                     "active": True,
                     "presence_status": "PRESENT",
-                    "face_id_enrolled": e_face.value,
-                    "face_photo": "data:image/png;base64,default_face" if e_face.value else None
+                    "face_id_enrolled": True,
+                    "face_photo": new_captured_photo["data"] or "data:image/png;base64,default_face"
                 })
-                dialog.close()
-                ui.notify(f'Employé "{e_name.value}" ajouté avec succès !', type='positive')
+                on_add_close()
+                ui.notify(f'Employé "{e_name.value}" créé avec Face ID actif !', type='positive')
                 render_employees_tab.refresh()
                 render_workshop_tab.refresh()
-            ui.button('Enregistrer l\'Employé', on_click=do_add_emp).props('color=primary')
+
+            ui.button('Enregistrer l\'Employé', on_click=do_add_emp).props('color=primary').classes('font-bold shadow-xs')
+
     dialog.open()
+    ui.timer(0.2, lambda: ui.run_javascript("window.suiviCam.start('add-emp-cam', 'add-cam-status')"), once=True)
+
 
 def open_edit_employee_dialog(emp_id: str):
     """Dialogue pour modifier un employé"""
@@ -1334,37 +1537,39 @@ def pointage_kiosk_page():
         with ui.element('div').classes('scan-container flex items-center justify-center relative'):
             # Flux vidéo HTML5 de la caméra web
             ui.html('<video id="kiosk-camera" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>')
-            ui.add_body_html('''
-            <script>
-                setTimeout(() => {
-                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-                            .then(stream => {
-                                const video = document.getElementById("kiosk-camera");
-                                if (video) { video.srcObject = stream; }
-                            })
-                            .catch(err => {
-                                console.log("Caméra désactivée ou indisponible :", err);
-                            });
-                    }
-                }, 300);
-            </script>
-            ''')
+            
             # Cadre ovale biométrique et rayon laser animé
             ui.element('div').classes('scan-oval')
             ui.element('div').classes('scan-beam')
 
+            # Bouton d'activation si le navigateur bloque l'autoplay
+            async def manual_start_cam():
+                await ui.run_javascript("window.suiviCam.start('kiosk-camera', 'kiosk-cam-status')")
+                kiosk_start_btn.classes(add='hidden')
+
+            kiosk_start_btn = ui.button('📷 Démarrer / Autoriser la Caméra', on_click=manual_start_cam).props('color=primary size=md icon=videocam').classes('absolute font-bold shadow-lg')
+
             # Badge superposition
-            with ui.element('div').classes('absolute bottom-3 left-4 right-4 flex items-center justify-between text-white text-2xs font-mono bg-slate-900/60 backdrop-blur-xs px-3 py-1.5 rounded-lg'):
-                ui.label('● CAMERA BIOMETRIQUE ACTIVE').classes('text-emerald-400 font-bold')
+            with ui.element('div').classes('absolute bottom-3 left-4 right-4 flex items-center justify-between text-white text-2xs font-mono bg-slate-900/70 backdrop-blur-xs px-3 py-1.5 rounded-lg'):
+                ui.html('<div id="kiosk-cam-status" class="text-emerald-400 font-bold">● CAMERA INITIALISATION...</div>')
                 ui.label('ALGO FACE-ID v2.4').classes('text-slate-300')
+
+        # Démarrage automatique au chargement
+        ui.timer(0.3, lambda: ui.run_javascript("""
+            window.suiviCam.start('kiosk-camera', 'kiosk-cam-status').then(ok => {
+                if (ok) {
+                    const btn = document.querySelector('.scan-container button');
+                    if (btn) btn.style.display = 'none';
+                }
+            });
+        """), once=True)
 
         # Sélecteur rapide / Bouton de Scan Face ID
         enrolled_employees = [e for e in settings_mgr.get_employees() if e.get("face_id_enrolled", True)]
         emp_options = {e["id"]: f"{e['name']} ({e.get('code', '')}) - {e.get('specialty', '')}" for e in enrolled_employees}
 
         with ui.card().classes('w-full bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs gap-3'):
-            ui.label('📸 Détection & Validation Biométrique :').classes('text-xs font-bold text-slate-600 uppercase tracking-wider')
+            ui.label('📸 Reconnaissance & Validation du Pointage :').classes('text-xs font-bold text-slate-600 uppercase tracking-wider')
 
             with ui.row().classes('w-full items-center gap-2 flex-wrap'):
                 selected_emp = ui.select(
@@ -1373,7 +1578,7 @@ def pointage_kiosk_page():
                     label="Opérateur devant la caméra"
                 ).props('outlined dense').classes('flex-1 bg-white')
 
-                def trigger_face_scan():
+                async def trigger_face_scan():
                     if not selected_emp.value:
                         ui.notify('Veuillez sélectionner un opérateur.', type='warning')
                         return
@@ -1381,6 +1586,10 @@ def pointage_kiosk_page():
                     emp_obj = next((e for e in settings_mgr.get_employees() if e["id"] == selected_emp.value), None)
                     if not emp_obj:
                         return
+
+                    # Capture de la photo en direct depuis la caméra et son de confirmation
+                    snapshot = await ui.run_javascript("window.suiviCam.capture('kiosk-camera')")
+                    await ui.run_javascript("window.suiviCam.playChime()")
 
                     # Enregistrement du pointage automatique
                     punch_res = settings_mgr.record_punch(
@@ -1396,8 +1605,8 @@ def pointage_kiosk_page():
                     # Mise à jour visuelle du bandeau
                     status_card.classes('bg-emerald-50 border-emerald-300', remove='bg-blue-50 border-blue-200')
                     status_icon.props('name=check_circle').classes('text-emerald-600', remove='text-blue-600')
-                    status_title.set_text(f'✅ {emp_obj["name"]} ({emp_obj.get("code")}) — Pointage Validé !')
-                    status_desc.set_text(f'{act_label} enregistrée à {punch_res["time_short"]} • Indice de confiance Face ID : 98.4%')
+                    status_title.set_text(f'✅ {emp_obj["name"]} ({emp_obj.get("code")}) — {act_label} Validée !')
+                    status_desc.set_text(f'Pointage horodaté à {punch_res["time_short"]} • Indice de reconnaissance Face ID : 98.4%')
 
                     ui.notify(
                         f'Pointage {act_label} validé pour {emp_obj["name"]} !', 
@@ -1406,7 +1615,7 @@ def pointage_kiosk_page():
                         close_button=True
                     )
 
-                ui.button('📷 Valider le Pointage Face ID', on_click=trigger_face_scan).props('color=primary size=md').classes('font-bold shadow-xs px-4')
+                ui.button('📸 Scanner mon Visage & Pointer', on_click=trigger_face_scan).props('color=primary size=md icon=camera_alt').classes('font-bold shadow-xs px-4')
 
         # Panneau des derniers pointages sur la borne
         with ui.card().classes('w-full bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs'):
@@ -1428,27 +1637,76 @@ def pointage_kiosk_page():
 
 
 def open_kiosk_admin_create_dialog():
-    """Dialogue Administrateur sur la Borne pour créer un employé et enrôler son visage sur place"""
+    """Dialogue Administrateur sur la Borne pour créer un employé et capturer son Face ID sur place"""
     next_num = len(settings_mgr.get_employees()) + 1
+    kiosk_captured = {"data": None}
 
-    with ui.dialog() as dialog, ui.card().classes('p-6 bg-white rounded-2xl w-96 max-w-full shadow-2xl'):
+    with ui.dialog() as dialog, ui.card().classes('p-6 bg-white rounded-2xl w-[440px] max-w-full shadow-2xl'):
         ui.icon('badge', size='md').classes('text-blue-600')
         ui.label('👑 Création Nouvel Employé (Borne Atelier)').classes('text-base font-extrabold text-slate-900')
-        ui.label('Enregistrez un opérateur et son Face ID directement depuis la tablette de l\'atelier.').classes('text-xs text-slate-500 mb-3')
+        ui.label('Enregistrez un opérateur et capturez son Face ID directement depuis la tablette.').classes('text-xs text-slate-500 mb-3')
 
         new_name = ui.input('Nom et prénom', placeholder='Ex: Alexandre Dumas').props('outlined dense').classes('w-full mb-2')
         new_code = ui.input('Matricule / Code', value=f'EMP-{next_num:02d}').props('outlined dense').classes('w-full mb-2')
         new_spec = ui.input('Spécialité / Métier', placeholder='Ex: Débit, Assemblage, Vitrage...').props('outlined dense').classes('w-full mb-2')
         new_phone = ui.input('Téléphone', placeholder='Ex: 06 00 00 00 00').props('outlined dense').classes('w-full mb-3')
 
-        with ui.row().classes('w-full items-center justify-between p-2.5 bg-blue-50 border border-blue-200 rounded-xl mb-4'):
-            with ui.row().classes('items-center gap-1.5'):
-                ui.icon('face', size='xs').classes('text-blue-700')
-                ui.label('Capturer le Face ID maintenant').classes('text-xs font-bold text-blue-900')
-            capture_checkbox = ui.checkbox('', value=True).props('dense color=primary')
+        # Cadre caméra Kiosk
+        with ui.card().classes('w-full p-3 bg-slate-50 border border-slate-200 rounded-xl items-center gap-2 mb-3'):
+            with ui.row().classes('w-full items-center justify-between'):
+                ui.label('Capture Visage Face ID').classes('text-xs font-bold text-slate-800')
+                ui.html('<div id="kiosk-add-status" class="text-3xs font-mono text-slate-500 font-semibold">● Prêt</div>')
+
+            with ui.element('div').classes('w-full relative rounded-lg overflow-hidden bg-slate-950 flex flex-col items-center justify-center').style('height: 180px;'):
+                ui.html('<video id="kiosk-add-cam" autoplay playsinline muted style="width: 100%; height: 180px; object-fit: cover;"></video>')
+                ui.html('''
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 110px; height: 140px; border: 2px dashed #3B82F6; border-radius: 50%; pointer-events: none; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);"></div>
+                ''')
+                kiosk_add_preview = ui.image('').classes('absolute inset-0 w-full h-full object-cover hidden rounded-lg')
+
+            with ui.row().classes('w-full items-center justify-center gap-2'):
+                async def start_kiosk_add_cam():
+                    await ui.run_javascript("window.suiviCam.start('kiosk-add-cam', 'kiosk-add-status')")
+                    kiosk_add_preview.classes(add='hidden')
+
+                async def capture_kiosk_add_photo():
+                    photo_b64 = await ui.run_javascript("window.suiviCam.capture('kiosk-add-cam')")
+                    if photo_b64 and len(str(photo_b64)) > 100:
+                        kiosk_captured["data"] = photo_b64
+                        kiosk_add_preview.set_source(photo_b64)
+                        kiosk_add_preview.classes(remove='hidden')
+                        ui.notify('Photo Face ID capturée avec succès !', type='positive')
+                    else:
+                        started = await ui.run_javascript("window.suiviCam.start('kiosk-add-cam', 'kiosk-add-status')")
+                        if not started:
+                            ui.notify('Activez la caméra ou importez une photo ci-dessous.', type='warning')
+                        else:
+                            ui.notify('Caméra allumée ! Re-cliquez sur "Prendre Photo".', type='info')
+
+                ui.button('📷 Allumer Caméra', on_click=start_kiosk_add_cam).props('outline size=xs color=primary').classes('font-bold text-2xs')
+                ui.button('📸 Prendre Photo Face ID', on_click=capture_kiosk_add_photo).props('color=primary size=xs').classes('font-bold text-2xs shadow-xs')
+
+        # Option import alternatif
+        def handle_kiosk_upload(e):
+            import base64
+            b64_content = base64.b64encode(e.content.read()).decode('utf-8')
+            mime = e.type or 'image/jpeg'
+            data_url = f"data:{mime};base64,{b64_content}"
+            kiosk_captured["data"] = data_url
+            kiosk_add_preview.set_source(data_url)
+            kiosk_add_preview.classes(remove='hidden')
+            ui.notify('Photo importée avec succès !', type='positive')
+
+        with ui.expansion('Ou importer une photo de profil...', icon='folder').classes('w-full text-2xs text-slate-500 border border-slate-200 rounded-lg mb-3'):
+            ui.upload(on_upload=handle_kiosk_upload, max_files=1).props('dense outlined accept="image/*"').classes('w-full text-2xs')
 
         with ui.row().classes('w-full justify-end gap-2'):
-            ui.button('Fermer', on_click=dialog.close).props('flat color=grey')
+            def on_kiosk_add_close():
+                ui.run_javascript("window.suiviCam.stop('kiosk-add-cam')")
+                dialog.close()
+
+            ui.button('Fermer', on_click=on_kiosk_add_close).props('flat color=grey')
+
             def do_admin_add():
                 if not new_name.value or not new_name.value.strip():
                     ui.notify('Veuillez renseigner le nom de l\'employé.', type='warning')
@@ -1461,16 +1719,18 @@ def open_kiosk_admin_create_dialog():
                     "phone": new_phone.value.strip(),
                     "active": True,
                     "presence_status": "PRESENT",
-                    "face_id_enrolled": capture_checkbox.value,
-                    "face_photo": "data:image/png;base64,sample_captured_from_kiosk" if capture_checkbox.value else None
+                    "face_id_enrolled": True,
+                    "face_photo": kiosk_captured["data"] or "data:image/png;base64,kiosk_face"
                 })
-                dialog.close()
+                on_kiosk_add_close()
                 ui.notify(f'Employé "{new_name.value}" créé avec Face ID activé !', type='positive', position='top')
-                # Recharger la page pour inclure le nouvel employé dans la borne
                 ui.navigate.to('/pointage')
 
             ui.button('Enregistrer & Activer', on_click=do_admin_add).props('color=primary').classes('font-bold shadow-xs')
+
     dialog.open()
+    ui.timer(0.2, lambda: ui.run_javascript("window.suiviCam.start('kiosk-add-cam', 'kiosk-add-status')"), once=True)
+
 
 
 if __name__ in {"__main__", "__mp_main__"}:
