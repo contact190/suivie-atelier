@@ -22,6 +22,12 @@ except ImportError:
     Image = None
     np = None
 
+try:
+    from supabase import create_client, Client
+except ImportError:
+    create_client = None
+    Client = None
+
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "settings.json")
 
 # Les 5 rôles clés de production
@@ -547,9 +553,142 @@ class SettingsManager:
             "qr_token": "kiosk_atelier_token"
         }
         self.face_credentials: Dict[str, Any] = {}
+        self.supabase = None
+        self.init_supabase()
         self._load()
 
+    def init_supabase(self):
+        """Initialise la connexion client avec le Cloud PostgreSQL Supabase"""
+        self.supabase_url = os.environ.get("SUPABASE_URL", "").strip()
+        self.supabase_key = (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY") or "").strip()
+        self.supabase = None
+        if self.supabase_url and self.supabase_key and create_client is not None:
+            try:
+                self.supabase = create_client(self.supabase_url, self.supabase_key)
+                print(f"⚡ Connecté à Supabase Cloud : {self.supabase_url}")
+            except Exception as e:
+                print("⚠️ Erreur initialisation Supabase :", e)
+
+    def sync_all_to_supabase(self):
+        """Injecte les modèles de menuiseries, rôles, employés et tables dans Supabase"""
+        if not self.supabase:
+            return
+        try:
+            # 1. Rôles de production
+            for r in self.roles:
+                self.supabase.table("roles").upsert({
+                    "id": r["id"],
+                    "label": r["label"],
+                    "color": r.get("color", "#3B82F6"),
+                    "default_pct": float(r.get("default_pct", 10)),
+                    "icon": r.get("icon", "handyman")
+                }).execute()
+
+            # 2. Modèles du catalogue (32 modèles de menuiseries)
+            for t in self.joinery_types:
+                self.supabase.table("joinery_types").upsert({
+                    "id": t["id"],
+                    "label": t["label"],
+                    "gamme": t.get("gamme", ""),
+                    "categorie": t.get("categorie", "CAT-F - Coulissant"),
+                    "has_joint_vitrage": bool(t.get("has_joint_vitrage", False)),
+                    "composants_count": int(t.get("composants_count", 16)),
+                    "description": t.get("description", ""),
+                    "temps_moyen_min": float(t.get("temps_moyen_min", 60.0)),
+                    "ratios": t.get("ratios", {})
+                }).execute()
+
+            # 3. Employés d'atelier
+            for e in self.employees:
+                self.supabase.table("employees").upsert({
+                    "id": e["id"],
+                    "name": e.get("name", "Employé"),
+                    "code": e.get("code", e["id"]),
+                    "specialty": e.get("specialty", ""),
+                    "phone": e.get("phone", ""),
+                    "active": bool(e.get("active", True)),
+                    "presence_status": e.get("presence_status", "PRESENT"),
+                    "last_punch_at": e.get("last_punch_at"),
+                    "face_id_enrolled": bool(e.get("face_id_enrolled", False))
+                }).execute()
+
+            # 4. Tables atelier & affectations
+            for tb in self.tables:
+                self.supabase.table("workshop_tables").upsert({
+                    "id": tb["id"],
+                    "name": tb.get("name", tb["id"]),
+                    "code": tb.get("code", tb["id"]),
+                    "description": tb.get("description", "")
+                }).execute()
+                for a in tb.get("role_assignments", []):
+                    try:
+                        self.supabase.table("table_role_assignments").upsert({
+                            "table_id": tb["id"],
+                            "role_id": a["role_id"],
+                            "employee_id": a["employee_id"]
+                        }, on_conflict="table_id,role_id").execute()
+                    except Exception:
+                        pass
+
+            # 5. Kiosk settings
+            self.supabase.table("kiosk_settings").upsert({
+                "id": "MAIN_KIOSK",
+                "kiosk_name": self.kiosk_settings.get("kiosk_name", "Borne Entrée Atelier"),
+                "admin_pin": self.kiosk_settings.get("admin_pin", "1234"),
+                "qr_token": self.kiosk_settings.get("qr_token", "kiosk_atelier_token")
+            }).execute()
+            print("✨ Synchronisation initiale vers Supabase réussie !")
+        except Exception as e:
+            print("⚠️ Erreur synchronisation Supabase :", e)
+
     def _load(self):
+        # 1. Si Supabase est configuré, tenter de charger depuis le Cloud
+        if self.supabase is not None:
+            try:
+                r_roles = self.supabase.table("roles").select("*").execute()
+                r_emp = self.supabase.table("employees").select("*").execute()
+                r_joinery = self.supabase.table("joinery_types").select("*").execute()
+                r_tables = self.supabase.table("workshop_tables").select("*").execute()
+                r_assign = self.supabase.table("table_role_assignments").select("*").execute()
+                r_punches = self.supabase.table("attendance_punches").select("*").order("punch_time", desc=True).limit(200).execute()
+                r_face = self.supabase.table("face_credentials").select("*").execute()
+                r_kiosk = self.supabase.table("kiosk_settings").select("*").execute()
+
+                # Si Supabase est vide (premier branchement), on injecte toutes nos données automatiquement
+                if not r_joinery.data or len(r_joinery.data) == 0:
+                    print("🚀 Supabase vide -> Initialisation automatique avec catalogue et employés...")
+                    self.joinery_types = [dict(t) for t in CATALOG_JOINERY_TYPES]
+                    self.tables = [dict(tb) for tb in DEFAULT_TABLES]
+                    self.roles = list(PRODUCTION_ROLES)
+                    self.employees = [dict(e) for e in DEFAULT_EMPLOYEES]
+                    self.sync_all_to_supabase()
+                else:
+                    self.roles = r_roles.data if r_roles.data else list(PRODUCTION_ROLES)
+                    self.employees = r_emp.data if r_emp.data else [dict(e) for e in DEFAULT_EMPLOYEES]
+                    self.joinery_types = r_joinery.data if r_joinery.data else [dict(t) for t in CATALOG_JOINERY_TYPES]
+                    
+                    loaded_tables = r_tables.data if r_tables.data else [dict(tb) for tb in DEFAULT_TABLES]
+                    assign_map = {}
+                    if r_assign.data:
+                        for a in r_assign.data:
+                            tb_id = a.get("table_id")
+                            if tb_id not in assign_map:
+                                assign_map[tb_id] = []
+                            assign_map[tb_id].append({"role_id": a.get("role_id"), "employee_id": a.get("employee_id")})
+                    for tb in loaded_tables:
+                        tb["role_assignments"] = assign_map.get(tb["id"], tb.get("role_assignments", []))
+                    self.tables = loaded_tables
+
+                    self.attendance_punches = r_punches.data if r_punches.data else []
+                    self.face_credentials = {fc["employee_id"]: fc for fc in (r_face.data or [])}
+                    if r_kiosk.data:
+                        self.kiosk_settings = r_kiosk.data[0]
+                    print(f"✅ Données chargées depuis Supabase ({len(self.joinery_types)} modèles, {len(self.employees)} employés)")
+                    return
+            except Exception as e:
+                print(f"⚠️ Erreur lecture Supabase ({e}), bascule sur stockage local...")
+
+        # 2. Stockage local (settings.json) en fallback
         if os.path.exists(SETTINGS_FILE):
             try:
                 with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
@@ -584,7 +723,6 @@ class SettingsManager:
                             e["face_id_enrolled"] = True
 
                     if tables and len(tables) > 0:
-                        # Assurer la compatibilité avec le format role_assignments multi-rôles
                         for tb in tables:
                             if "role_assignments" not in tb or not isinstance(tb["role_assignments"], list):
                                 old_role = tb.get("role_id", "assemblage")
@@ -627,6 +765,16 @@ class SettingsManager:
             "kiosk_settings": self.kiosk_settings,
             "face_credentials": self.face_credentials
         }
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        
+        # Synchronisation en tâche de fond sur Supabase si connecté
+        if self.supabase is not None:
+            try:
+                import threading
+                threading.Thread(target=self.sync_all_to_supabase, daemon=True).start()
+            except Exception:
+                pass
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
