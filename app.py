@@ -872,27 +872,70 @@ def render_recent_punches_section():
 
 # --- Dialogues Employés & Borne QR Code ---
 
-def open_qr_kiosk_dialog():
-    """Dialogue affichant le QR Code officiel de la borne de pointage Face ID"""
-    kiosk_url = "http://localhost:8000/pointage"
-    qr_data_url = settings_mgr.generate_kiosk_qr(kiosk_url)
+def get_local_ip() -> str:
+    """Détecte l'adresse IP locale du PC sur le réseau Wi-Fi / Ethernet"""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
 
-    with ui.dialog() as dialog, ui.card().classes('p-6 bg-white rounded-2xl w-96 max-w-full text-center items-center gap-3 shadow-lg'):
+def open_qr_kiosk_dialog():
+    """Dialogue affichant le QR Code officiel de la borne de pointage Face ID pour mobile et tablette"""
+    local_ip = get_local_ip()
+    default_url = f"http://{local_ip}:8000/pointage"
+    qr_state = {"url": default_url}
+
+    with ui.dialog() as dialog, ui.card().classes('p-6 bg-white rounded-2xl w-[460px] max-w-full text-center items-center gap-3 shadow-2xl'):
         ui.icon('qr_code_scanner', size='md').classes('text-blue-600')
-        ui.label('Borne de Pointage Face ID').classes('text-lg font-extrabold text-slate-900')
-        ui.label('Flashez ce QR Code avec une tablette, un smartphone ou placez-le imprimé à l\'entrée de l\'atelier pour ouvrir directement l\'interface Face ID.').classes('text-xs text-slate-500 px-2 leading-relaxed')
+        ui.label('Borne de Pointage Face ID (Mobile / Tablette)').classes('text-lg font-extrabold text-slate-900')
+        ui.label('Flashez ce QR Code avec votre smartphone ou tablette connectée au Wi-Fi de l\'atelier.').classes('text-xs text-slate-500 px-2 leading-relaxed')
 
         # Affichage du QR Code généré
         with ui.card().classes('p-3 bg-white border border-slate-200 rounded-xl shadow-2xs my-1'):
-            ui.image(qr_data_url).classes('w-56 h-56 rounded-lg')
+            qr_img = ui.image(settings_mgr.generate_kiosk_qr(default_url)).classes('w-56 h-56 rounded-lg')
 
-        with ui.column().classes('w-full gap-1 bg-blue-50 border border-blue-200 p-2.5 rounded-xl text-2xs text-blue-900'):
-            ui.label('🔒 Accès Administrateur Kiosk :').classes('font-bold uppercase tracking-wider')
-            ui.label('Code PIN par défaut : 1234 (permet la création d\'employé sur place)').classes('font-mono font-bold')
+        # Champ d'URL modifiable pour basculer facilement (ex: Tunnel HTTPS ou IP Wi-Fi)
+        with ui.column().classes('w-full gap-2 text-left'):
+            ui.label('URL ciblée par le QR Code :').classes('text-3xs font-bold uppercase tracking-wider text-slate-500')
+            url_input = ui.input(value=default_url).props('outlined dense').classes('w-full font-mono text-xs')
+            
+            def update_qr():
+                target = (url_input.value or '').strip() or default_url
+                qr_state["url"] = target
+                qr_img.set_source(settings_mgr.generate_kiosk_qr(target))
+                ui.notify('QR Code mis à jour avec la nouvelle URL !', type='info')
+            
+            url_input.on('change', update_qr)
 
-        with ui.row().classes('w-full justify-center gap-2 pt-2'):
+            # Raccourcis rapides
+            with ui.row().classes('w-full items-center justify-between text-2xs'):
+                def set_wifi():
+                    url_input.set_value(f"http://{local_ip}:8000/pointage")
+                    update_qr()
+                def set_local():
+                    url_input.set_value("http://localhost:8000/pointage")
+                    update_qr()
+
+                ui.button(f'📶 Wi-Fi Atelier ({local_ip})', on_click=set_wifi).props('outline size=xs color=primary').classes('font-bold')
+                ui.button('💻 Localhost (Ce PC)', on_click=set_local).props('flat size=xs color=grey').classes('font-bold')
+
+        # Note de sécurité sur la caméra mobile (HTTPS vs HTTP)
+        with ui.column().classes('w-full gap-1.5 bg-blue-50/70 border border-blue-200 p-3 rounded-xl text-left text-2xs text-blue-950'):
+            with ui.row().classes('items-center gap-1.5'):
+                ui.icon('info', size='xs').classes('text-blue-600')
+                ui.label('Comment ouvrir sur smartphone avec la Caméra :').classes('font-bold text-xs')
+            ui.label('1. Sur le même Wi-Fi : Ouvrez l\'adresse ci-dessus dans votre navigateur mobile.').classes('text-slate-600')
+            ui.label('2. Caméra sur mobile : Les navigateurs (iPhone/Android) exigent une connexion HTTPS pour activer la caméra. Lancez le fichier "start_tunnel.bat" sur votre PC pour obtenir un lien HTTPS direct !').classes('text-blue-900 font-semibold')
+            ui.label('3. Code PIN Admin Borne : 1234 (pour créer un employé sur place)').classes('font-mono font-bold text-slate-700 pt-1')
+
+        with ui.row().classes('w-full justify-center gap-2 pt-1'):
             ui.button('Fermer', on_click=dialog.close).props('flat color=grey')
-            ui.button('🌐 Ouvrir la Borne (/pointage)', on_click=lambda: ui.navigate.to('/pointage', new_tab=True)).props('color=primary').classes('font-bold shadow-xs text-xs')
+            ui.button('🌐 Ouvrir la Borne sur ce PC', on_click=lambda: ui.navigate.to('/pointage', new_tab=True)).props('color=primary').classes('font-bold shadow-xs text-xs')
     dialog.open()
 
 def open_face_enroll_dialog(emp_id: str):
